@@ -60,12 +60,18 @@
         <attr name="avatarViewIndicatorBorderColor" format="color|reference" />
         <!-- Border color of the indicator array -->
         <attr name="avatarViewIndicatorBorderColorArray" format="reference" />
+        <!-- Size width criteria of the indicator drawable-->
+        <attr name="avatarViewIndicatorDrawableWidthCriteria" format="float" />
+        <!-- Size height criteria of the indicator drawable -->
+        <attr name="avatarViewIndicatorDrawableHeightCriteria" format="float" />
         <!-- Size criteria of the indicator -->
         <attr name="avatarViewIndicatorSizeCriteria" format="float" />
         <!-- Border Size criteria of the indicator -->
         <attr name="avatarViewIndicatorBorderSizeCriteria" format="float" />
         <!-- Custom drawable of the indicator -->
         <attr name="avatarViewIndicatorDrawable" format="reference" />
+        <!-- Sets avatar indicator drawable on border position-->
+        <attr name="isAvatarViewIndicatorDrawableOnBorderPosition" format="boolean"/>
         <!-- Supports RTL layout is enabled or not -->
         <attr name="avatarViewSupportRtlEnabled" format="boolean" />
         <!-- Sets the maximum section size of the avatar when loading multiple images -->

@@ -48,6 +48,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlin.coroutines.CoroutineContext
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * AvatarView supports segmented style images, borders, indicators, and initials.
@@ -92,6 +95,9 @@ public class AvatarView @JvmOverloads constructor(
     @get:Px
     public var avatarInitialsTextSize: Int by viewProperty(-1)
 
+    /** Sets the indicator drawable on border position */
+    public var isAvatarIndicatorDrawableOnBorderPosition: Boolean by viewProperty(false)
+
     /** The text size ratio of the initials. */
     @get:FloatRange(from = 0.0, to = 1.0)
     public var avatarInitialsTextSizeRatio: Float by viewProperty(0.33f)
@@ -123,6 +129,12 @@ public class AvatarView @JvmOverloads constructor(
 
     /** The border color array of the indicator. */
     public var indicatorBorderColorArray: IntArray by viewProperty(intArrayOf())
+
+    /** The width size criteria of the indicator drawable. */
+    public var indicatorDrawableWidthCriteria: Float by viewProperty(7f)
+
+    /** The height size criteria of the indicator drawable. */
+    public var indicatorDrawableHeightCriteria: Float by viewProperty(7f)
 
     /** The size criteria of the indicator. */
     public var indicatorSizeCriteria: Float by viewProperty(8f)
@@ -166,6 +178,9 @@ public class AvatarView @JvmOverloads constructor(
             .use { typedArray ->
                 avatarBorderWidth = typedArray.getDimensionPixelSize(
                     R.styleable.AvatarView_avatarViewBorderWidth, avatarBorderWidth
+                )
+                isAvatarIndicatorDrawableOnBorderPosition = typedArray.getBoolean(
+                    R.styleable.AvatarView_isAvatarViewIndicatorDrawableOnBorderPosition, isAvatarIndicatorDrawableOnBorderPosition
                 )
                 avatarBorderColor = typedArray.getColor(
                     R.styleable.AvatarView_avatarViewBorderColor, avatarBorderColor
@@ -226,6 +241,14 @@ public class AvatarView @JvmOverloads constructor(
                 indicatorSizeCriteria = typedArray.getFloat(
                     R.styleable.AvatarView_avatarViewIndicatorSizeCriteria,
                     indicatorSizeCriteria
+                )
+                indicatorDrawableWidthCriteria = typedArray.getFloat(
+                    R.styleable.AvatarView_avatarViewIndicatorDrawableWidthCriteria,
+                    indicatorDrawableWidthCriteria
+                )
+                indicatorDrawableHeightCriteria = typedArray.getFloat(
+                    R.styleable.AvatarView_avatarViewIndicatorDrawableHeightCriteria,
+                    indicatorDrawableHeightCriteria
                 )
                 indicatorBorderSizeCriteria = typedArray.getFloat(
                     R.styleable.AvatarView_avatarViewIndicatorBorderSizeCriteria,
@@ -352,31 +375,30 @@ public class AvatarView @JvmOverloads constructor(
         if (indicatorEnabled) {
             val isRtlEnabled = supportRtlEnabled && isRtlLayout
 
+            val centerX = width / 2f
+            val centerY = height / 2f
+            val radius = width / 2f - avatarBorderWidth / 2
             val customIndicator = indicatorDrawable
             if (customIndicator != null) with(customIndicator) {
-                val cx: Float = when (indicatorPosition) {
-                    IndicatorPosition.TOP_LEFT,
-                    IndicatorPosition.BOTTOM_LEFT,
-                    -> if (isRtlEnabled) width - (width / indicatorSizeCriteria)
-                    else 0f
-                    IndicatorPosition.TOP_RIGHT,
-                    IndicatorPosition.BOTTOM_RIGHT,
-                    -> if (isRtlEnabled) width / indicatorSizeCriteria
-                    else width - (width / indicatorSizeCriteria)
+                val indicatorW = width / indicatorDrawableWidthCriteria
+                val indicatorH = height / indicatorDrawableHeightCriteria
+                val cx: Float = if (isAvatarIndicatorDrawableOnBorderPosition) {
+                    getIndicatorPointXOnCircle(centerX, radius, isRtlEnabled) - (indicatorW / 2f)
+                } else {
+                    getIndicatorStartX(indicatorW, isRtlEnabled)
                 }
-                val cy: Float = when (indicatorPosition) {
-                    IndicatorPosition.TOP_LEFT,
-                    IndicatorPosition.TOP_RIGHT,
-                    -> 0f
-                    IndicatorPosition.BOTTOM_LEFT,
-                    IndicatorPosition.BOTTOM_RIGHT,
-                    -> height - height / indicatorSizeCriteria
+                val cy: Float = if (isAvatarIndicatorDrawableOnBorderPosition) {
+                    getIndicatorPointYOnCircle(centerY, radius) - (indicatorH / 2f)
+                } else {
+                    getIndicatorStartY(indicatorH)
                 }
+                val eX: Float = cx + indicatorW
+                val eY: Float =  cy + indicatorH
                 setBounds(
                     cx.toInt(),
                     cy.toInt(),
-                    (cx + width / indicatorSizeCriteria).toInt(),
-                    (cy + height / indicatorSizeCriteria).toInt()
+                    eX.toInt(),
+                    eY.toInt()
                 )
                 draw(canvas)
             } else {
@@ -410,6 +432,50 @@ public class AvatarView @JvmOverloads constructor(
         }
     }
 
+    private fun getIndicatorPointXOnCircle(centerX: Float, radius: Float, isRtlEnabled: Boolean): Float {
+        val angle = when(indicatorPosition) {
+            IndicatorPosition.TOP_LEFT -> if (isRtlEnabled) ANGLE_OF_TURN_45 else ANGLE_OF_TURN_135
+            IndicatorPosition.TOP_RIGHT -> if (isRtlEnabled) ANGLE_OF_TURN_135 else ANGLE_OF_TURN_45
+            IndicatorPosition.BOTTOM_LEFT -> if (isRtlEnabled) ANGLE_OF_TURN_315 else ANGLE_OF_TURN_225
+            IndicatorPosition.BOTTOM_RIGHT -> if (isRtlEnabled) ANGLE_OF_TURN_225 else ANGLE_OF_TURN_315
+        }
+        return centerX + (radius * cos(angle)).toFloat()
+    }
+
+    private fun getIndicatorPointYOnCircle(centerY: Float, radius: Float): Float {
+        val angle = when(indicatorPosition) {
+            IndicatorPosition.TOP_LEFT -> ANGLE_OF_TURN_225
+            IndicatorPosition.TOP_RIGHT -> ANGLE_OF_TURN_315
+            IndicatorPosition.BOTTOM_LEFT -> ANGLE_OF_TURN_135
+            IndicatorPosition.BOTTOM_RIGHT -> ANGLE_OF_TURN_45
+        }
+        return centerY + (radius * sin(angle)).toFloat()
+    }
+
+    private fun getIndicatorStartX(indicatorW: Float, isRtlEnabled: Boolean): Float {
+        return when(indicatorPosition) {
+            IndicatorPosition.TOP_LEFT,
+            IndicatorPosition.BOTTOM_LEFT,
+            -> if (isRtlEnabled) width - indicatorW
+            else 0f
+            IndicatorPosition.TOP_RIGHT,
+            IndicatorPosition.BOTTOM_RIGHT,
+            -> if (isRtlEnabled) indicatorW
+            else width - indicatorW
+        }
+    }
+
+    private fun getIndicatorStartY(indicatorH: Float): Float {
+        return when (indicatorPosition) {
+            IndicatorPosition.TOP_LEFT,
+            IndicatorPosition.TOP_RIGHT,
+            -> 0f
+            IndicatorPosition.BOTTOM_LEFT,
+            IndicatorPosition.BOTTOM_RIGHT,
+            -> height - indicatorH
+        }
+    }
+
     /** Apply gradient shader to a [Paint]. */
     private fun Paint.applyGradientShader(colorArray: IntArray, cx: Float, cy: Float): Paint =
         apply {
@@ -437,5 +503,10 @@ public class AvatarView @JvmOverloads constructor(
         internal const val AVATAR_SIZE_EXTRA = 1
 
         private const val BORDER_OFFSET = 4F
+
+        private const val ANGLE_OF_TURN_45 = 45 * (PI / 180)
+        private const val ANGLE_OF_TURN_135 = 135 * (PI / 180)
+        private const val ANGLE_OF_TURN_225 = 225 * (PI / 180)
+        private const val ANGLE_OF_TURN_315 = 315 * (PI / 180)
     }
 }
